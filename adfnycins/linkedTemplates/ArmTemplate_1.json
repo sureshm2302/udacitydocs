@@ -1,0 +1,289 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adfnycins"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/powerquery1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "WranglingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"name": "ds_sqldb_summary",
+							"script": "source(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> ds_sqldb_summary",
+							"dataset": {
+								"referenceName": "ds_sqldb_summary",
+								"type": "DatasetReference"
+							}
+						}
+					],
+					"script": "section Section1;\r\nshared ds_sqldb_summary = let AdfDoc = Sql.Database(\"sqldbnyrollsrv.database.windows.net\", \"db_nycpayroll\", [CreateNavigationProperties = false]), InputTable = AdfDoc{[Schema=\"dbo\",Item=\"NYC_Payroll_Summary\"]}[Data] in InputTable;\r\nshared UserQuery = let Source = #\"ds_sqldb_summary\",\r\n  #\"Filtered rows\" = Table.SelectRows(Source, each [FiscalYear] = 2021) in #\"Filtered rows\";\r\n",
+					"documentLocale": "en-us"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_Payroll')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_Agency",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_Agency",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"adlsAgency": {},
+									"sinkAgency": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "df_Emp",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_Emp",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"adlsEmp": {},
+									"sinkEmp": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "df_Title",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_Title",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"adlsTitle": {},
+									"sinkTitle": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "df_Payroll2020",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "df_Title",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "df_Agency",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "df_Emp",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_Payroll2020",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"adlsPayrollHist": {},
+									"sinkSqldbPayrollHist": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "df_Payroll2021",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "df_Title",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "df_Agency",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "df_Emp",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_Payroll2021",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"adlsPayroll2021": {},
+									"sinkPayroll2021": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "df_Summary",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "df_Payroll2020",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "df_Payroll2021",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_Summary",
+								"type": "DataFlowReference",
+								"parameters": {
+									"dataflow_param_fiscalyear": "2020"
+								},
+								"datasetParameters": {
+									"SqldbPayroll2020": {},
+									"SqldbPayroll2021": {},
+									"sinkSqlSummary": {},
+									"dirstaging": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2024-09-28T17:45:08Z"
+			},
+			"dependsOn": []
+		}
+	]
+}
