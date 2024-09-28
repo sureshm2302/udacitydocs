@@ -1,0 +1,20 @@
+{
+	"name": "powerquery1",
+	"properties": {
+		"type": "WranglingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"name": "ds_sqldb_summary",
+					"script": "source(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> ds_sqldb_summary",
+					"dataset": {
+						"referenceName": "ds_sqldb_summary",
+						"type": "DatasetReference"
+					}
+				}
+			],
+			"script": "section Section1;\r\nshared ds_sqldb_summary = let AdfDoc = Sql.Database(\"sqldbnyrollsrv.database.windows.net\", \"db_nycpayroll\", [CreateNavigationProperties = false]), InputTable = AdfDoc{[Schema=\"dbo\",Item=\"NYC_Payroll_Summary\"]}[Data] in InputTable;\r\nshared UserQuery = let Source = #\"ds_sqldb_summary\",\r\n  #\"Filtered rows\" = Table.SelectRows(Source, each [FiscalYear] = 2021) in #\"Filtered rows\";\r\n",
+			"documentLocale": "en-us"
+		}
+	}
+}
